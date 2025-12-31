@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ontos | 深度创作者的思想外骨骼</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <!-- Design Philosophy: "Final Polish"
+         - Update: Changed "费时费力" to "手动整理" in Path 2 as requested.
+         - Everything else remains pixel-perfect from previous iteration.
+    -->
+
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #fcfbf9; 
+            color: #1a1a1a;
+            overflow-x: hidden;
+        }
+        .serif {
+            font-family: 'Noto Serif SC', serif;
+        }
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+        .sans-logo {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Timeline Track Base */
+        .timeline-track {
+            position: absolute;
+            top: 24px;
+            height: 2px;
+            background: #e7e5e4;
+            z-index: 0;
+        }
+        
+        .node-wrapper {
+            position: absolute;
+            top: 0;
+            height: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            transform: translateX(-50%);
+            z-index: 10;
+            width: 100px;
+        }
+
+        /* The Dot Styling */
+        .node-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #a8a29e;
+            margin-top: 19px;
+            transition: all 0.3s ease;
+        }
+        
+        .node-dot-step {
+            background: white;
+            border-color: #d6d3d1; 
+        }
+
+        /* Labels */
+        .node-text-top {
+            position: absolute;
+            top: -22px;
+            font-size: 11px;
+            color: #57534e;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .node-text-bottom {
+            position: absolute;
+            top: 38px;
+            font-size: 10px;
+            color: #a8a29e;
+            white-space: nowrap;
+            text-align: center;
+            width: 120px;
+        }
+
+        /* Path Specifics */
+        .path-1 .node-dot { border-color: #a8a29e; background: #e7e5e4; }
+        
+        .path-2 .node-dot-active { border-color: #3b82f6; background: #3b82f6; }
+        .path-2 .node-dot-step { border-color: #93c5fd; background: white; }
+        .path-2 .timeline-track { background: #dbeafe; }
+
+        .path-3 .node-dot { border-color: #b45309; background: #fff7ed; }
+        .path-3 .node-dot-main { background: #b45309; border-color: #b45309; }
+        .path-3 .timeline-track { background: linear-gradient(90deg, #b45309 0%, #fdba74 100%); height: 3px; }
+
+        /* 3D Visuals */
+        .vector-container {
+            perspective: 1000px;
+        }
+        .vector-plane {
+            transform-style: preserve-3d;
+            transform: rotateX(20deg) rotateY(0deg);
+        }
+        .glow-point {
+            box-shadow: 0 0 12px currentColor;
+        }
+
+        /* --- Flomo-like UI Styles --- */
+        .memo-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            padding: 14px;
+            border-radius: 2px;
+            margin-bottom: 10px;
+            font-size: 11px;
+            color: #444;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+            line-height: 1.6;
+        }
+        .memo-card.selected {
+            border-color: #b45309;
+            background-color: #fffbf7;
+            transform: translateX(4px);
+        }
+        .memo-card.selected::before {
+            content: '';
+            position: absolute;
+            left: -1px;
+            top: 0; bottom: 0;
+            width: 3px;
+            background-color: #b45309;
+            border-radius: 2px 0 0 2px;
+        }
+        .memo-tag {
+            display: inline-block;
+            color: #b45309;
+            margin-top: 8px;
+            font-size: 10px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        .memo-date {
+            color: #a3a3a3;
+            font-size: 9px;
+            margin-top: 8px;
+            float: right;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        
+        .icon-box {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Navbar -->
+    <nav class="fixed w-full z-50 bg-[#fcfbf9]/95 backdrop-blur-md border-b border-black/5">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
+            <!-- Geometric Minimalist Logo -->
+            <div class="flex items-center gap-1 group cursor-pointer select-none">
+                <span class="sans-logo font-black tracking-[0.15em] text-lg text-[#1a1a1a]">ONTOS</span>
+                <span class="w-1.5 h-1.5 bg-[#b45309] rounded-full mt-1 group-hover:scale-125 transition-transform duration-300"></span>
+            </div>
+            
+            <div class="text-[10px] font-mono font-medium text-stone-400 border border-stone-200 px-2 py-1 rounded bg-white">
+                V 1.1.3
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="pt-32 pb-24 px-6 max-w-4xl mx-auto text-center">
+        <h1 class="text-4xl md:text-5xl serif font-medium leading-tight mb-8 text-[#1a1a1a]">
+            你想要更快的输出频率，<br>
+            这是否意味着必须<span class="text-stone-400 line-through decoration-stone-300 decoration-1">牺牲作品深度</span>？
+        </h1>
+        
+        <p class="text-lg text-stone-600 font-light leading-relaxed max-w-2xl mx-auto mb-6">
+            如果你想保持高频更新以维持可见度，又要拒绝平庸以维持灵魂。
+        </p>
+
+        <!-- CTA Button -->
+        <button onclick="scrollToFooter()" class="bg-[#1a1a1a] text-white px-8 py-3 rounded-sm text-sm font-bold shadow-lg hover:bg-[#b45309] transition-colors duration-300 tracking-wide">
+            Join The Waitlist
+        </button>
+    </header>
+
+    <!-- SECTION 2: Workflow Comparison -->
+    <section class="py-24 border-t border-black/5 bg-white">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="mb-28 text-center">
+                <h2 class="text-2xl serif font-bold mb-4">三种深度创作路径对比</h2>
+            </div>
+
+            <div class="space-y-36 relative"> 
+                
+                <!-- Vertical Guide Line -->
+                <div class="absolute left-[110px] top-0 bottom-0 w-px bg-stone-100 hidden md:block"></div>
+
+                <!-- PATH 1: Manual -->
+                <div class="relative pl-0 md:pl-28 h-16 path-1">
+                    <div class="md:absolute left-0 top-3 text-sm font-bold text-stone-500 w-24 text-right leading-tight">
+                        路径一<br><span class="text-[10px] font-normal opacity-70">纯脑力</span>
+                    </div>
+                    
+                    <div class="relative w-full h-full">
+                        <!-- Line -->
+                        <div class="timeline-track" style="left: 4%; width: 92%; background: linear-gradient(90deg, #d6d3d1 0%, #d6d3d1 30%, transparent 35%, transparent 60%, #d6d3d1 65%);"></div>
+                        
+                        <div class="absolute left-[50%] top-[-10px] transform -translate-x-1/2 text-[10px] text-stone-400 bg-stone-50 px-2 py-1 rounded border border-stone-200">
+                            ⚠ 自然遗忘
+                        </div>
+
+                        <!-- Start Node -->
+                        <div class="node-wrapper" style="left: 4%;">
+                            <div class="node-text-top">灵感迸发</div>
+                            <div class="node-dot"></div>
+                            <div class="node-text-bottom">走路/健身时</div>
+                        </div>
+
+                        <div class="node-wrapper" style="left: 65%;">
+                            <div class="node-text-top">坐下回想</div>
+                            <div class="node-dot"></div>
+                            <div class="node-text-bottom">冷启动</div>
+                        </div>
+
+                        <!-- End Node -->
+                        <div class="node-wrapper" style="left: 96%;">
+                            <div class="node-text-top">高质低产</div>
+                            <div class="node-dot"></div>
+                            <div class="node-text-bottom">低可见度</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PATH 2: Tools -->
+                <div class="relative pl-0 md:pl-28 h-16 path-2">
+                    <div class="md:absolute left-0 top-3 text-sm font-bold text-blue-900 w-24 text-right leading-tight">
+                        路径二<br><span class="text-[10px] font-normal opacity-70">工具流</span>
+                    </div>
+                    
+                    <div class="relative w-full h-full">
+                        <!-- Line -->
+                        <div class="timeline-track" style="left: 4%; width: 92%;"></div>
+
+                        <!-- 1. Record -->
+                        <div class="node-wrapper" style="left: 4%;">
+                            <div class="node-text-top text-blue-900">录音/笔记</div>
+                            <div class="node-dot node-dot-active"></div>
+                            <div class="node-text-bottom">多工具介入</div>
+                        </div>
+
+                        <!-- 2. Classify -->
+                        <div class="node-wrapper" style="left: 19%;">
+                            <div class="node-text-top text-stone-400">笔记归类</div>
+                            <div class="node-dot node-dot-step"></div>
+                            <div class="node-text-bottom text-stone-400">手动整理</div>
+                        </div>
+
+                        <!-- 3. Copy Paste -->
+                        <div class="node-wrapper" style="left: 34%;">
+                            <div class="node-text-top text-stone-400">复制粘贴</div>
+                            <div class="node-dot node-dot-step"></div>
+                            <div class="node-text-bottom">工具跳转</div>
+                        </div>
+
+                        <!-- 4. Manual Write -->
+                        <div class="node-wrapper" style="left: 50%;">
+                            <div class="node-text-top text-blue-900">手动创作</div>
+                            <div class="node-dot node-dot-active"></div>
+                            <div class="node-text-bottom">参考笔记</div>
+                        </div>
+
+                        <!-- 5. AI Edit -->
+                        <div class="node-wrapper" style="left: 66%;">
+                            <div class="node-text-top text-stone-400">AI 修改</div>
+                            <div class="node-dot node-dot-step"></div>
+                            <div class="node-text-bottom">通用 AI</div>
+                        </div>
+
+                         <!-- 6. De-AI -->
+                         <div class="node-wrapper" style="left: 81%;">
+                            <div class="node-text-top text-stone-400">去AI味</div>
+                            <div class="node-dot node-dot-step"></div>
+                            <div class="node-text-bottom">二次修改</div>
+                        </div>
+
+                        <!-- 7. End -->
+                        <div class="node-wrapper" style="left: 96%;">
+                            <div class="node-text-top">高质低产</div>
+                            <div class="node-dot" style="background: #dbeafe; border-color: #93c5fd;"></div>
+                            <div class="node-text-bottom">流程摩擦大</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PATH 3: Ontos -->
+                <div class="relative pl-0 md:pl-28 h-16 path-3">
+                    <div class="md:absolute left-0 top-3 text-sm font-bold text-[#b45309] w-24 text-right leading-tight">
+                        路径三<br><span class="text-[10px] font-normal opacity-70">Ontos</span>
+                    </div>
+                    
+                    <div class="relative w-full h-full">
+                        <!-- Line -->
+                        <div class="timeline-track" style="left: 4%; width: 92%;"></div>
+
+                        <!-- 1. Capture -->
+                        <div class="node-wrapper" style="left: 4%;">
+                            <div class="node-text-top text-[#b45309] font-bold">极速捕获</div>
+                            <div class="node-dot node-dot-main"></div>
+                            <div class="node-text-bottom">乱序语音/文字</div>
+                        </div>
+
+                        <!-- 2. Auto Classify -->
+                        <div class="node-wrapper" style="left: 27%;">
+                            <div class="node-text-top">自动归类</div>
+                            <div class="node-dot"></div>
+                            <div class="node-text-bottom">无感整理</div>
+                        </div>
+
+                        <!-- 3. Generate Content -->
+                        <div class="node-wrapper" style="left: 50%;">
+                            <div class="node-text-top text-stone-800">生成内容</div>
+                            <div class="node-dot border-[#b45309] border-4"></div>
+                            <div class="node-text-bottom">基于灵感</div>
+                        </div>
+
+                        <!-- 4. Style Fine-tuning -->
+                        <div class="node-wrapper" style="left: 73%;">
+                            <div class="node-text-top">风格微调</div>
+                            <div class="node-dot"></div>
+                            <div class="node-text-bottom">基于个人风格</div>
+                        </div>
+
+                        <!-- 5. End -->
+                        <div class="node-wrapper" style="left: 96%;">
+                            <div class="node-text-top text-[#b45309] font-bold">高质高产</div>
+                            <div class="node-dot node-dot-main"></div>
+                            <div class="node-text-bottom">带灵魂的稿子</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: The Transformation (The Operational Logic) -->
+    <section class="py-24 bg-stone-50 border-y border-stone-200">
+        <div class="max-w-6xl mx-auto px-6">
+            <div class="grid md:grid-cols-2 gap-20 items-center">
+                
+                <!-- Text: The 3 Core Pillars -->
+                <div class="order-2 md:order-1">
+                    <span class="text-[#b45309] font-bold tracking-widest text-[10px] uppercase mb-4 block font-mono">The Operational Logic</span>
+                    <h2 class="text-3xl serif font-bold text-[#1a1a1a] mb-8 leading-tight">
+                        Ontos不仅仅是记录，<br>而是思想的<span class="text-[#b45309]">“自动化工厂”</span>。
+                    </h2>
+                    
+                    <div class="space-y-10">
+                        <!-- Point 1: Capture -->
+                        <div class="flex gap-5">
+                            <div class="icon-box text-stone-800 pt-1">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 18.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Z"/><path d="M12 12v3"/><path d="M12 5.5V9"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M20 12h2"/><path d="M2 12h2"/><path d="M17.657 6.343l1.414-1.414"/><path d="M4.929 19.071l1.414-1.414"/><path d="M17.657 17.657l1.414 1.414"/><path d="M4.929 4.929l1.414 1.414"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-stone-900 text-sm mb-2">灵感资产化</h4>
+                                <p class="text-xs text-stone-500 leading-relaxed max-w-sm">
+                                    大多数灵感在出现的瞬间就消亡了。Ontos 将你每一秒的思考都固化为可调用的永久资产，而非一次性的废料。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Point 2: Production -->
+                        <div class="flex gap-5">
+                            <div class="icon-box text-stone-800 pt-1">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-stone-900 text-sm mb-2">投入生产线</h4>
+                                <p class="text-xs text-stone-500 leading-relaxed max-w-sm">
+                                    告别“笔记坟场”。你的笔记不再是死的，而是等待被征用的原料。当你选中它们，它们即刻转化为结构化的作品雏形。
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Point 3: Authenticity -->
+                        <div class="flex gap-5">
+                            <div class="icon-box text-[#b45309] pt-1">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            </div>
+                            <div>
+                                <h4 class="font-bold text-[#b45309] text-sm mb-2">数字孪生创作</h4>
+                                <p class="text-xs text-stone-500 leading-relaxed max-w-sm">
+                                    它不只是生成文字，它在运行你的思维模型。通过多维坐标推演，产出的每一句话都像是你灵魂的直接延伸。
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual: Flomo-like Selection UI -->
+                <div class="order-1 md:order-2 relative bg-[#f7f7f7] p-6 rounded rounded-lg border border-stone-200 shadow-inner min-h-[420px] flex flex-col">
+                    
+                    <!-- App Header -->
+                    <div class="flex justify-between items-center mb-6 px-1">
+                        <span class="text-[10px] font-bold text-stone-400 tracking-widest font-mono">YOUR THOUGHT STREAM</span>
+                        <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                    </div>
+
+                    <!-- Memos List (Replaced with IP/Influencer Content) -->
+                    <div class="flex-1 overflow-hidden relative space-y-3">
+                        <!-- Selected Note 1 -->
+                        <div class="memo-card selected">
+                            <p>IP 的本质不是流量，而是信任的容器。网红追求的是宽度的曝光，而深度创作者追求的是信任的厚度。</p>
+                            <span class="memo-tag">#IP思考</span>
+                            <span class="memo-date">2024.01.12</span>
+                        </div>
+
+                        <!-- Unselected Note -->
+                        <div class="memo-card opacity-40 hover:opacity-60">
+                            <p>记得给周末的视频脚本补一个开头，要提到安迪·沃霍尔的那个名言。</p>
+                            <span class="memo-tag">#待办</span>
+                            <span class="memo-date">2024.02.05</span>
+                        </div>
+
+                        <!-- Selected Note 2 -->
+                        <div class="memo-card selected">
+                            <p>不要做算法的奴隶。算法只奖励短期的多巴胺刺激，而真正有价值的 IP 是反算法的，它奖励的是长期的共鸣和复利。</p>
+                            <span class="memo-tag">#算法反思</span>
+                            <span class="memo-date">昨天 14:20</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Bar -->
+                    <div class="mt-6 pt-4 border-t border-stone-200 flex justify-between items-center">
+                        <span class="text-xs text-[#b45309] font-medium font-mono">2 ITEMS SELECTED</span>
+                        <button onclick="scrollToFooter()" class="bg-[#1a1a1a] text-white px-5 py-2 rounded-sm text-xs font-bold shadow-lg hover:bg-[#b45309] transition-colors duration-300 flex items-center gap-2 tracking-wide">
+                            <span>ENTER STUDIO</span>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                        </button>
+                    </div>
+
+                    <!-- Floating Badge (Identity) -->
+                    <div class="absolute -right-6 top-16 bg-white p-4 rounded-md shadow-xl border border-stone-100 w-48 z-10 hidden md:block">
+                        <div class="text-[8px] text-stone-400 uppercase tracking-widest mb-2 font-mono">IDENTITY VECTOR</div>
+                        <div class="text-xs font-bold text-stone-800 mb-1">偏好：长期主义/信任</div>
+                        <div class="text-xs font-bold text-stone-800 mb-2">反感：算法迎合/噪音</div>
+                        <div class="flex items-center gap-1">
+                            <div class="h-1 w-1 bg-[#b45309] rounded-full"></div>
+                            <div class="h-0.5 w-full bg-stone-100 rounded-full overflow-hidden">
+                                <div class="h-full bg-[#b45309] w-4/5"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Vector Space Visualization (Dan Koe Style) -->
+    <section class="py-24 bg-[#0a0a0a] text-stone-300 relative overflow-hidden">
+        <div class="max-w-6xl mx-auto px-6 grid lg:grid-cols-2 gap-20 items-center relative z-10">
+            
+            <!-- Explanation -->
+            <div class="order-2 lg:order-1">
+                <h2 class="text-3xl serif text-white font-medium mb-8 leading-snug">
+                    大多数 AI 是互联网的平均值。<br>
+                    Ontos 是你意识的数字拓扑。
+                </h2>
+                
+                <div class="space-y-8 text-stone-400 font-light leading-relaxed text-sm md:text-base">
+                    <p>
+                        写作的本质不是词语的堆砌，而是对现实的编码。当你写作时，你是在用你独特的世界观（透镜）去过滤这个世界。
+                    </p>
+                    <p>
+                        通用 AI 的问题在于，它没有你的“透镜”。它没有你的经历，没有你的偏见，也没有你的品味。它只能给你一个统计学上最正确的平庸答案。
+                    </p>
+                    <div class="pl-4 border-l border-[#b45309]">
+                        <p class="text-stone-200">
+                            Ontos 不会试图“模仿”你的文字，它试图“成为”你的思维模型。
+                        </p>
+                    </div>
+                    <p>
+                        通过分析你过往的作品，Ontos 提取出的不只是文风，而是一个高维的<strong>认知坐标系</strong>。当新的灵感碎片进入这个坐标系，系统不是在进行文本补全，而是在进行<strong>推演</strong>。
+                    </p>
+                    <p>
+                        它在问自己：<br>
+                        <span class="text-[#b45309] font-mono">“如果是坐在那个坐标上的人（你），会如何通过这三个碎片构建现实？”</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- 3D Visualization -->
+            <div class="order-1 lg:order-2 vector-container h-[550px] w-full bg-[#111] rounded-xl border border-stone-800 relative flex items-center justify-center overflow-hidden">
+                <div class="vector-plane w-full h-full relative">
+                    <!-- Grid Floor -->
+                    <div class="grid-floor absolute inset-0 opacity-20 transform scale-150"></div>
+
+                    <!-- Scene Elements -->
+                    <div class="absolute inset-0 flex items-center justify-center transform translate-y-12">
+                        
+                        <!-- 1. The User Identity Coordinate (The Lens) -->
+                        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-30">
+                            <!-- Dot -->
+                            <div class="w-4 h-4 bg-[#b45309] rounded-full glow-point"></div>
+                            <!-- Label -->
+                            <div class="absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                <span class="text-[10px] font-mono text-[#b45309] bg-stone-900 px-2 py-1 rounded border border-[#b45309]/50">
+                                    你的认知透镜 (Lens)
+                                </span>
+                                <div class="w-px h-4 bg-[#b45309] mx-auto opacity-50"></div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Scattered Fragments (Inputs) -->
+                        <div class="absolute top-[30%] right-[30%] z-20 animate-pulse delay-75">
+                            <div class="w-2 h-2 bg-white rounded-full opacity-80"></div>
+                        </div>
+                        <div class="absolute top-[20%] right-[20%] z-20 animate-pulse delay-150">
+                            <div class="w-2 h-2 bg-white rounded-full opacity-80"></div>
+                        </div>
+                        <div class="absolute top-[25%] right-[15%] z-20 animate-pulse delay-300">
+                            <div class="w-2 h-2 bg-white rounded-full opacity-80"></div>
+                             <div class="absolute -top-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                <span class="text-[10px] font-mono text-stone-400">散落的灵感碎片</span>
+                            </div>
+                        </div>
+
+                        <!-- 3. Vector Calculation Visuals -->
+                        <svg class="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible">
+                            <defs>
+                                <linearGradient id="projGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#b45309" stop-opacity="0.8" />
+                                    <stop offset="100%" stop-color="#fff" stop-opacity="0.2" />
+                                </linearGradient>
+                            </defs>
+                            
+                            <!-- Rays focusing through the "Lens" (User) -->
+                            <line x1="70%" y1="30%" x2="50%" y2="50%" stroke="#444" stroke-width="1" stroke-dasharray="2 2" />
+                            <line x1="80%" y1="20%" x2="50%" y2="50%" stroke="#444" stroke-width="1" stroke-dasharray="2 2" />
+                            <line x1="85%" y1="25%" x2="50%" y2="50%" stroke="#444" stroke-width="1" stroke-dasharray="2 2" />
+                            
+                            <!-- Solid Line: The Synthesis Output -->
+                            <line x1="50%" y1="50%" x2="30%" y2="35%" stroke="url(#projGrad)" stroke-width="3" />
+                            
+                        </svg>
+
+                        <!-- 4. Output Node -->
+                        <div class="absolute top-[35%] left-[30%] transform -translate-x-1/2 -translate-y-1/2 z-30">
+                            <div class="w-3 h-3 bg-white rounded-full glow-point"></div>
+                            <div class="absolute top-4 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                                <span class="text-[10px] font-mono text-stone-200 bg-stone-800 px-2 py-0.5 rounded border border-stone-600">
+                                    拓扑后的现实
+                                </span>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+                
+                <div class="absolute bottom-4 right-4 text-[10px] text-stone-600 font-mono">
+                    VISUALIZATION: PATTERN SYNTHESIS
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Request Access -->
+    <footer id="footer-form" class="py-24 bg-[#fcfbf9] text-center px-6">
+        <div class="max-w-xl mx-auto">
+            <h2 class="text-2xl serif font-medium text-[#1a1a1a] mb-6">
+                为少数人准备的思想工具
+            </h2>
+            <p class="text-stone-500 font-light text-sm mb-10 leading-relaxed">
+                Ontos 正在寻找 100 位拥有长期创作习惯的深度思考者。<br>
+                如果您厌倦了在不同 APP 间搬运灵感，欢迎加入 Waitlist。
+            </p>
+            
+            <form class="flex border-b border-stone-300 pb-2 focus-within:border-[#b45309] transition duration-300" onsubmit="event.preventDefault(); alert('申请已记录');">
+                <input type="email" placeholder="输入邮箱以申请" class="flex-1 bg-transparent px-2 py-2 outline-none text-stone-900 placeholder-stone-400 font-mono text-sm">
+                <button type="submit" class="px-4 py-2 text-stone-900 hover:text-[#b45309] text-xs uppercase tracking-widest font-bold transition">
+                    加入 Waitlist
+                </button>
+            </form>
+            <p class="mt-8 text-[10px] text-stone-400 font-mono">
+                © 2025 Ontos Inc. All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        function scrollToFooter() {
+            document.getElementById('footer-form').scrollIntoView({ 
+                behavior: 'smooth' 
+            });
+        }
+    </script>
+
+</body>
+</html>
